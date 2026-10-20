@@ -6,7 +6,12 @@ let pendingImport = null;
 let editingId = null;
 let viewingId = null;
 let account = null;
+let staffSession = null;
+let staffPeople = [];
+let staffAccounts = [];
+try { staffSession = sessionStorage.getItem('workplan-staff-session'); } catch {}
 const apiBase=String(window.WORKPLAN_API_BASE||'').replace(/\/+$/,'');
+function staffId(dept,owner){return JSON.stringify([String(dept||'').trim().normalize('NFC'),String(owner||'').replace(/\s+/gu,'').normalize('NFC')]);}
 function linkAccess(){
   const match=/^#(edit|view)\/([a-f0-9]{64})(?:\/(overview|departments|tasks|safety))?$/i.exec(location.hash);
   const token=match?.[2]||'';
@@ -19,24 +24,27 @@ let {token:editToken,kind:linkKind,mode:accessMode}=linkAccess();
 try { sessionStorage.removeItem('workplan-edit-token'); } catch {}
 
 function canEdit(task) {
-  return accessMode==='edit'&&(account?.role === 'admin' || (account?.role === 'editor' && (account.departments.includes('*') || account.departments.includes(task.dept))));
+  return accessMode==='edit'&&(account?.role === 'admin' || (account?.role === 'staff' && account.staffId === staffId(task.dept,task.owner)));
 }
 function applyAccount() {
   if (!account) return;
   if(accessMode==='view')account={...account,role:'viewer',departments:[]};
-  $('accountLabel').textContent = `${account.username} · ${account.role === 'admin' ? '관리자' : account.role === 'editor' ? '부서 담당자' : '조회 전용'}`;
+  $('accountLabel').textContent = `${account.username} · ${account.role === 'admin' ? '관리자' : account.role === 'staff' ? '담당자' : '조회 전용'}`;
   for (const id of ['uploadBtn', 'backupBtn', 'safetyBtn']) $(id).hidden = account.role !== 'admin';
-  $('addTaskBtn').hidden = account.role === 'viewer';
+  $('manageStaffBtn').hidden = account.role !== 'admin';
+  $('staffLogoutBtn').hidden = account.role !== 'staff';
+  $('addTaskBtn').hidden = account.role !== 'admin';
   const editable=accessMode==='edit'&&account.role!=='viewer';
   $('accessBanner').classList.toggle('editing',editable);
   $('accessModeTitle').textContent=editable?'편집 모드':'보기 전용';
-  $('accessModeDescription').textContent=editable?'업무를 등록하고 수정할 수 있습니다.':'조회와 인쇄만 가능합니다. 업무를 수정하려면 편집용 링크를 이용하세요.';
-  // A read-only URL must use its own viewer token.\n  $('viewOnlyLink').hidden=true;
-  $('taskAccessBadge').textContent=editable?'편집 가능':'보기 전용';
+  $('accessModeDescription').textContent=account.role==='staff'?'본인 담당 과제만 수정할 수 있습니다.':editable?'업무를 등록하고 수정할 수 있습니다.':'조회와 인쇄만 가능합니다. 업무를 수정하려면 직원용 링크를 이용하세요.';
+  // A read-only URL must use its own viewer token. Never offer a link that
+  // only masks an editor token with a query parameter.
+  $('viewOnlyLink').hidden=true;
+  $('taskAccessBadge').textContent=account.role==='staff'?'본인 과제만 수정':editable?'편집 가능':'보기 전용';
   document.querySelector('.panel-caption').textContent=editable?'업무명을 누르면 추진계획과 이행현황을 확인하고 수정할 수 있습니다.':'업무명을 누르면 추진계획과 이행현황을 확인할 수 있습니다.';
   document.querySelector('.action-note').textContent=editable?'부서별 과제를 선택해 세부내용을 확인하고 수정할 수 있습니다.':'부서별 과제를 선택해 세부내용을 확인할 수 있습니다.';
   if($('detailDialog').open){const task=state?.tasks.find(task=>task.id===viewingId);$('detailEdit').hidden=!task||!canEdit(task);}
-  
   for(const link of document.querySelectorAll('a[data-section]'))link.setAttribute('href',linkKind&&editToken?`#${linkKind}/${editToken}/${link.dataset.section}`:`#${link.dataset.section}`);
 }
 async function refreshLinkAccess(){
@@ -45,7 +53,7 @@ async function refreshLinkAccess(){
   for(const id of ['taskDialog','uploadDialog','safetyDialog'])if($(id).open)$(id).close();
   $('detailEdit').hidden=true;
   const mode=accessMode,token=editToken;
-  try{const me=await api('GET','/api/me');if(mode===accessMode&&token===editToken){account=me;applyAccount();}}catch(err){toast(err.message);}
+  try{await initializeAccess();}catch(err){toast(err.message);}
 }
 
 async function api(method, url, payload) {
@@ -54,9 +62,10 @@ async function api(method, url, payload) {
   if(!editToken)throw new Error('조회용 또는 편집용 링크로 접속해 주세요.');
   const headers = {'X-Workplan-Mode':accessMode,...(payload?{'Content-Type':'application/json'}:{})};
   headers['X-Workplan-Link-Token']=editToken;
+  if(staffSession)headers['X-Workplan-Staff-Session']=staffSession;
   const response = await fetch(`${apiBase}${url}`, { method, headers, body:payload ? JSON.stringify(payload) : undefined });
   const result = await response.json();
-  if (!response.ok) throw new Error(result.error || '처리 중 오류가 발생했습니다.');
+  if (!response.ok){const error=new Error(result.error || '처리 중 오류가 발생했습니다.');error.status=response.status;throw error;}
   return result;
 }
 function toast(message) { const el=$('toast'); el.textContent=message; el.classList.add('show'); clearTimeout(el.timer); el.timer=setTimeout(()=>el.classList.remove('show'),3300); }
@@ -223,7 +232,7 @@ function updateScore(){
 }
 function openTask(task){
   if (task && !canEdit(task)) return toast('이 업무를 수정할 권한이 없습니다.');
-  if (!task && account?.role === 'viewer') return toast('조회 전용 계정입니다.');
+  if (!task && account?.role !== 'admin') return toast('업무 등록은 관리자만 할 수 있습니다.');
   editingId=task?.id||null; $('taskDialogTitle').textContent=task?'업무 수정':'업무 등록'; $('taskEditHint').textContent=task?`${task.dept} · ${task.task}`:'새 업무의 기본 정보와 추진계획을 입력하세요.'; const f=$('taskForm');f.reset();
   const fields=['dept','owner','task','status','pct','dueDate','score','points','background','detail_content','schedule','basis','budget','effect'];
   for(const key of fields)if(f.elements[key]) f.elements[key].value=task?.[key]??'';
@@ -232,8 +241,8 @@ function openTask(task){
   for(const item of activities)addActivity(item);
   if(!activities.length)addActivity();
   updateScore();
-  if (!task && account?.role === 'editor' && account.departments.length === 1 && account.departments[0] !== '*') f.elements.dept.value = account.departments[0];
-  f.elements.dept.readOnly = account?.role === 'editor' && (Boolean(task) || (account.departments.length === 1 && account.departments[0] !== '*'));
+  f.elements.dept.readOnly = account?.role === 'staff';
+  f.elements.owner.readOnly = account?.role === 'staff';
   $('taskDialog').showModal();
 }
 function printReport(){
@@ -244,7 +253,111 @@ function printReport(){
   window.print();
 }
 
+async function showStaffLogin(){
+  staffSession=null;
+  try { sessionStorage.removeItem('workplan-staff-session'); } catch {}
+  staffPeople=await api('GET','/api/staff-directory');
+  const depts=[...new Set(staffPeople.map(person=>person.dept))].sort((a,b)=>a.localeCompare(b,'ko'));
+  $('staffLoginDept').innerHTML='<option value="">부서 선택</option>'+depts.map(dept=>`<option value="${esc(dept)}">${esc(dept)}</option>`).join('');
+  $('staffLoginOwner').innerHTML='<option value="">담당자 선택</option>';
+  $('staffLoginError').textContent='';
+  if(!$('staffLoginDialog').open)$('staffLoginDialog').showModal();
+}
+
+async function initializeAccess(){
+  try{
+    const me=await api('GET','/api/me');
+    const nextState=await api('GET','/api/state');
+    account=me;state=nextState;applyAccount();render();
+    if($('staffLoginDialog').open)$('staffLoginDialog').close();
+  }catch(error){
+    if(linkKind==='edit'&&error.status===401){
+      state=null;account=null;await showStaffLogin();return;
+    }
+    throw error;
+  }
+}
+
+function renderStaffAdmin(){
+  const configured=staffAccounts.filter(person=>person.configured).length;
+  $('staffAdminSummary').textContent=`담당자 ${staffAccounts.length}명 · 비밀번호 설정 ${configured}명 · 미설정 ${staffAccounts.length-configured}명`;
+  const query=$('staffAdminSearch').value.trim().toLocaleLowerCase('ko');
+  const visible=staffAccounts.map((person,index)=>({...person,index})).filter(person=>!query||`${person.dept} ${person.owner}`.toLocaleLowerCase('ko').includes(query));
+  $('staffAccountRows').innerHTML=visible.length?visible.map(person=>`<div class="staff-account-row" data-index="${person.index}">
+    <div><strong>${esc(person.dept)} · ${esc(person.owner)}</strong><small>담당 과제 ${person.taskCount}건</small></div>
+    <div><strong>${person.configured?'설정 완료':'미설정'}</strong><small>${person.passwordUpdatedAt?new Date(person.passwordUpdatedAt).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'}):'비밀번호 필요'}</small></div>
+    <input type="password" autocomplete="new-password" minlength="10" maxlength="128" aria-label="${esc(person.dept)} ${esc(person.owner)} 새 비밀번호" placeholder="새 비밀번호 10자 이상">
+    <div class="staff-account-actions"><button type="button" class="button primary staff-password-save">${person.configured?'변경':'설정'}</button><button type="button" class="button ghost staff-password-disable" ${person.configured?'':'disabled'}>차단</button></div>
+  </div>`).join(''):'<div class="empty">조건에 맞는 담당자가 없습니다.</div>';
+}
+
+function renderStaffAudit(rows){
+  const names=new Map(staffAccounts.map(person=>[person.id,`${person.dept} · ${person.owner}`]));
+  const labels={login_success:'로그인 성공',login_failed:'로그인 실패',logout:'로그아웃',task_updated:'과제 수정',password_set:'비밀번호 설정·변경',password_disabled:'접속 차단'};
+  $('staffAuditRows').innerHTML=rows.length?rows.map(row=>{
+    const task=state?.tasks.find(item=>item.id===row.task_id);
+    const who=names.get(row.staff_id)||'현재 과제에 없는 담당자';
+    return `<div class="staff-audit-row"><time>${esc(new Date(row.created_at).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'}))}</time><strong>${esc(who)}</strong><span>${esc(labels[row.event]||row.event)}${task?' · '+esc(task.task):''}</span></div>`;
+  }).join(''):'<div class="empty">기록된 접속 이력이 없습니다.</div>';
+}
+
+async function refreshStaffAdmin(){
+  const [people,audit]=await Promise.all([api('GET','/api/admin/staff'),api('GET','/api/admin/staff-audit')]);
+  staffAccounts=people;renderStaffAdmin();renderStaffAudit(audit);
+}
+
+async function openStaffAdmin(){
+  await refreshStaffAdmin();
+  $('staffAdminDialog').showModal();
+}
+
 function bind(){
+  $('staffLoginDialog').addEventListener('cancel',event=>event.preventDefault());
+  $('staffLoginDept').onchange=()=>{
+    const people=staffPeople.filter(person=>person.dept===$('staffLoginDept').value);
+    $('staffLoginOwner').innerHTML='<option value="">담당자 선택</option>'+people.map(person=>`<option value="${esc(person.owner)}">${esc(person.owner)}</option>`).join('');
+  };
+  $('staffLoginForm').onsubmit=async event=>{
+    event.preventDefault();
+    const form=event.target,submit=form.querySelector('[type="submit"]');
+    submit.disabled=true;$('staffLoginError').textContent='';
+    try{
+      const result=await api('POST','/api/staff-login',Object.fromEntries(new FormData(form)));
+      staffSession=result.session;
+      try { sessionStorage.setItem('workplan-staff-session',staffSession); } catch {}
+      form.elements.password.value='';
+      await initializeAccess();
+    }catch(error){$('staffLoginError').textContent=error.message;form.elements.password.value='';}
+    finally{submit.disabled=false;}
+  };
+  $('staffLogoutBtn').onclick=async()=>{
+    try{await api('POST','/api/staff-logout');}catch{}
+    staffSession=null;
+    try{sessionStorage.removeItem('workplan-staff-session');}catch{}
+    location.reload();
+  };
+  $('manageStaffBtn').onclick=()=>openStaffAdmin().catch(error=>toast(error.message));
+  $('staffAdminClose').onclick=()=>$('staffAdminDialog').close();
+  $('staffAdminSearch').oninput=renderStaffAdmin;
+  $('staffAccountRows').onclick=async event=>{
+    const button=event.target.closest('button'),row=button?.closest('.staff-account-row');
+    if(!row)return;
+    const person=staffAccounts[Number(row.dataset.index)];
+    if(!person)return;
+    if(button.matches('.staff-password-save')){
+      const input=row.querySelector('input'),password=input.value;
+      if([...password].length<10){toast('비밀번호는 10자 이상으로 입력해 주세요.');input.focus();return;}
+      button.disabled=true;
+      try{await api('PUT','/api/admin/staff-password',{dept:person.dept,owner:person.owner,password});input.value='';await refreshStaffAdmin();toast(`${person.dept} ${person.owner} 비밀번호를 설정했습니다.`);}
+      catch(error){toast(error.message);}finally{button.disabled=false;}
+    }
+    if(button.matches('.staff-password-disable')){
+      if(!confirm(`${person.dept} ${person.owner}의 접속을 차단하고 로그인 상태를 해제할까요?`))return;
+      button.disabled=true;
+      try{await api('DELETE','/api/admin/staff-password',{dept:person.dept,owner:person.owner});await refreshStaffAdmin();toast(`${person.owner}의 접속을 차단했습니다.`);}
+      catch(error){toast(error.message);}finally{button.disabled=false;}
+    }
+  };
   for(const link of document.querySelectorAll('.top-nav a,.nav-link')){
     const section=link.getAttribute('href').slice(1);link.dataset.section=section;
     link.addEventListener('click',event=>{if(event.ctrlKey||event.metaKey||event.shiftKey||event.altKey)return;event.preventDefault();history.pushState(null,'',link.getAttribute('href'));$(section)?.scrollIntoView({behavior:'smooth',block:'start'});});
@@ -283,8 +396,10 @@ function bind(){
   $('backupBtn').onclick=async()=>{try{const data=await api('GET','/api/export');const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'})),link=document.createElement('a');link.href=url;link.download='workplan-backup.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(err){toast(err.message);}};$('printBtn').onclick=printReport;
 }
 bind();
-Promise.all([api('GET','/api/me'), api('GET','/api/state')]).then(([me,s])=>{
-  account=me;state=s;applyAccount();render();
-  setInterval(async()=>{try{const fresh=await api('GET','/api/state');if(fresh.updatedAt!==state.updatedAt){state=fresh;render();}}catch{}},15000);
+initializeAccess().then(()=>{
+  setInterval(async()=>{
+    if(!state)return;
+    try{const fresh=await api('GET','/api/state');if(fresh.updatedAt!==state.updatedAt){state=fresh;render();}}
+    catch(error){if(error.status===401&&linkKind==='edit'){staffSession=null;try{sessionStorage.removeItem('workplan-staff-session');}catch{}location.reload();}}
+  },15000);
 }).catch(err=>toast(`서버 연결 실패: ${err.message}`));
-
