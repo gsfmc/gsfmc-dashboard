@@ -31,12 +31,12 @@ function applyAccount() {
   $('accessBanner').classList.toggle('editing',editable);
   $('accessModeTitle').textContent=editable?'편집 모드':'보기 전용';
   $('accessModeDescription').textContent=editable?'업무를 등록하고 수정할 수 있습니다.':'조회와 인쇄만 가능합니다. 업무를 수정하려면 편집용 링크를 이용하세요.';
-  $('viewOnlyLink').hidden=!editable;
+  // A read-only URL must use its own viewer token.\n  $('viewOnlyLink').hidden=true;
   $('taskAccessBadge').textContent=editable?'편집 가능':'보기 전용';
   document.querySelector('.panel-caption').textContent=editable?'업무명을 누르면 추진계획과 이행현황을 확인하고 수정할 수 있습니다.':'업무명을 누르면 추진계획과 이행현황을 확인할 수 있습니다.';
   document.querySelector('.action-note').textContent=editable?'부서별 과제를 선택해 세부내용을 확인하고 수정할 수 있습니다.':'부서별 과제를 선택해 세부내용을 확인할 수 있습니다.';
   if($('detailDialog').open){const task=state?.tasks.find(task=>task.id===viewingId);$('detailEdit').hidden=!task||!canEdit(task);}
-  $('viewOnlyLink').href=`?view=readonly#edit/${editToken}/tasks`;
+  
   for(const link of document.querySelectorAll('a[data-section]'))link.setAttribute('href',linkKind&&editToken?`#${linkKind}/${editToken}/${link.dataset.section}`:`#${link.dataset.section}`);
 }
 async function refreshLinkAccess(){
