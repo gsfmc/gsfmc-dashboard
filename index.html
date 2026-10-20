@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>주요업무계획 대시보드 | 광산구시설관리공단</title>
+  <meta name="description" content="부서별 주요업무계획과 이행현황을 관리하는 내부용 대시보드">
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./theme.css">
+  <meta name="robots" content="noindex,nofollow">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand"><span class="brand-mark">G</span><span><strong>광산구시설관리공단</strong><small>업무계획 관리시스템</small></span></div>
+      <div class="sidebar-label">WORKSPACE</div>
+      <nav aria-label="화면 이동">
+        <a class="nav-link active" href="#overview"><span>▦</span> 대시보드</a>
+        <a class="nav-link" href="#tasks"><span>☷</span> 주요업무</a>
+        <a class="nav-link" href="#safety"><span>◇</span> 안전 현황</a>
+      </nav>
+      <div class="sidebar-bottom"><span class="side-indicator"></span> 내부 업무용 시범 버전<br><small id="accountLabel">직원 계정 확인 중</small></div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar"><div class="breadcrumb">업무관리 <span>/</span> 주요업무계획 <span>/</span> <b>대시보드</b></div><div class="top-right"><span id="dataStatus" class="data-status">자료 확인 중</span><span class="avatar">GS</span></div></header>
+      <nav class="top-nav" aria-label="주요 메뉴"><a href="#overview">전체 현황</a><a href="#departments">부서 현황</a><a href="#tasks">추진과제</a><a href="#safety">안전 현황</a></nav>
+      <div class="content">
+        <section id="overview" class="page-head">
+          <div><div class="eyebrow"><span class="eyebrow-line"></span> 광산구시설관리공단 · WORK PLAN MONITOR</div><h1>2026년 주요업무계획 추진 대시보드</h1><p>“지속가능한 발전·책임 경영으로 미래를 여는 일류공기업”을 위한 부서별 추진 현황</p></div>
+          <div class="header-side"><div class="header-chips" id="headerChips"></div><span id="dataStatusMirror" class="data-status">자료 확인 중</span></div>
+        </section>
+        <div id="accessBanner" class="access-banner" role="status"><div><strong id="accessModeTitle">권한 확인 중</strong><span id="accessModeDescription">접속 링크의 권한을 확인하고 있습니다.</span></div><a id="viewOnlyLink" href="?view=readonly#tasks" hidden>보기 전용으로 전환 →</a></div>
+        <div class="action-row"><div class="head-actions"><button class="button ghost" id="backupBtn" hidden>자료 백업</button><button class="button ghost" id="printBtn">주요업무계획 인쇄</button><button class="button primary" id="uploadBtn" hidden>＋ 엑셀 업로드</button><input id="fileInput" type="file" accept=".xlsx" hidden></div><span class="action-note">부서별 과제를 선택해 세부내용을 확인하고 수정할 수 있습니다.</span></div>
+        <section class="hero-metrics" aria-label="핵심 지표">
+          <div class="panel gauge-card"><span class="g-title">전사 평균 이행률</span><span class="g-sub">전체 추진과제 기준</span><div id="gaugeMount" class="gauge-mount"></div><div class="gauge-foot">완료 과제 <b id="gaugeFootRate">—</b></div></div>
+          <div class="hero-right"><section class="kpi-grid"><div class="kpi-card"><span>전체 과제</span><strong id="kpiTotal">—</strong><small>등록된 추진과제</small></div><div class="kpi-card"><span>진행 중</span><strong id="kpiActive">—</strong><small>현재 추진 중인 과제</small></div><div class="kpi-card"><span>완료</span><strong id="kpiDone">—</strong><small>전체 과제 중 완료</small></div><div class="kpi-card alert"><span>기한 지연</span><strong id="kpiLate">—</strong><small>마감일 경과 · 미완료</small></div></section><div id="statusStrip" class="panel status-strip"></div></div>
+        </section>
+
+        <section id="departments" class="section-heading"><div><span class="section-index">01</span><h2>부서별 이행률 비교</h2></div><span>막대 길이 = 평균 이행률 · 표식 = 전사 평균</span></section>
+        <section class="panel compare-panel"><div id="deptList" class="dept-list"></div></section>
+        <section class="section-heading"><div><span class="section-index">02</span><h2>부서 현황판</h2></div><span>도넛 = 부서 평균 이행률 · 전사 평균 미만은 빨간색 · 카드 선택 시 과제 필터링</span></section>
+        <div id="deptCards" class="dept-cards"></div>
+
+        <section id="tasks" class="section-heading"><div><span class="section-index">03</span><h2>추진과제 탐색</h2></div><span>전사 평균 이행률 미만 과제는 빨간색으로 표시됩니다.</span></section>
+        <section class="panel task-panel"><div class="panel-head"><span class="panel-caption">업무명을 누르면 추진계획과 이행현황을 확인하고 수정할 수 있습니다.</span><div class="task-panel-actions"><span id="taskAccessBadge" class="access-mode-badge">권한 확인 중</span><button id="addTaskBtn" class="button subtle" hidden>＋ 업무 등록</button></div></div><div class="filterbar"><label class="search-wrap"><span>⌕</span><input id="searchInput" type="search" placeholder="과제명, 추진내용, 담당자 검색"></label><select id="deptFilter" aria-label="부서 필터"><option value="">전체 부서</option></select><select id="statusFilter" aria-label="진행상태 필터"><option value="">전체 상태</option><option>예정</option><option>진행중</option><option>완료</option><option>보류</option><option>미입력</option></select><button id="resetFilters" class="text-button">초기화</button></div><div class="table-wrap"><table><thead><tr><th>부서 / 담당자</th><th>주요업무</th><th>상태</th><th>이행률</th><th>자체평가 점수</th><th>마감일</th><th></th></tr></thead><tbody id="taskRows"></tbody></table></div><div id="taskFoot" class="table-foot"></div></section>
+
+        <section class="section-heading"><div><span class="section-index">04</span><h2>안전사고 발생현황</h2></div><span>2026년 현황 및 누계</span></section>
+        <section id="safety" class="panel safety-panel"><div class="safety-numbers"><div><span>2026년 발생</span><strong id="safetyCount">—</strong><small>건</small></div><div><span>누계</span><strong id="safetyCumulative">—</strong><small>건</small></div></div><p id="safetyNote" class="safety-note">현황을 입력해 주세요.</p><button id="safetyBtn" class="button subtle" hidden>현황 입력 →</button></section>
+        <footer>광산구시설관리공단 · 내부 업무용 시범 버전 <span id="lastUpdated"></span></footer>
+      </div>
+    </main>
+  </div>
+
+  <dialog id="uploadDialog" class="dialog"><form method="dialog"><button class="dialog-x" aria-label="닫기">×</button></form><div class="dialog-kicker">DATA IMPORT</div><h2>엑셀 자료 가져오기</h2><p>첨부2 양식의 부서별 시트를 읽습니다. 기존 업무 목록은 업로드한 엑셀 기준으로 갱신되고, 직접 입력한 마감일 등은 같은 과제명에 유지됩니다.</p><div id="uploadPreview" class="upload-preview"></div><div class="dialog-actions"><button id="uploadCancel" class="button ghost">취소</button><button id="uploadConfirm" class="button primary">업로드 적용</button></div></dialog>
+
+  <dialog id="detailDialog" class="dialog detail-dialog"><button type="button" class="dialog-x" id="detailClose" aria-label="닫기">×</button><div id="detailBody"></div><div class="dialog-actions detail-actions"><button type="button" class="button ghost" id="detailDone">닫기</button><button type="button" class="button primary" id="detailEdit">이 업무 수정 →</button></div></dialog>
+
+  <dialog id="taskDialog" class="dialog wide edit-dialog">
+    <button type="button" class="dialog-x" id="taskClose" aria-label="닫기">×</button>
+    <div class="dialog-kicker">WORK PLAN EDIT</div><h2 id="taskDialogTitle">업무 등록</h2><p id="taskEditHint">업무 내용을 입력하고 저장하세요.</p>
+    <form id="taskForm">
+      <div class="edit-section-title">과제 기본 정보</div>
+      <div class="form-grid">
+        <label>부서 <input name="dept" required></label><label>담당자 <input name="owner"></label>
+        <label class="span-2">업무명 <input name="task" required></label>
+        <label>진행상태 <select name="status"><option>예정</option><option>진행중</option><option>완료</option><option>보류</option><option>미입력</option></select></label>
+        <label>이행률 (%) <input name="pct" type="number" min="0" max="100" step="1"></label>
+        <label>마감일 <input name="dueDate" type="date"></label>
+        <fieldset class="score-field"><legend>자체평가 점수</legend><div class="score-inputs"><input name="score" aria-label="자체평가 취득점수" type="number" min="0" step="0.1" placeholder="취득점수"><span>/</span><input name="points" aria-label="자체평가 배점" type="number" min="0" step="0.1" placeholder="배점"><span>점</span></div><output id="scorePreview" class="score-preview">0 / 0점</output></fieldset>
+      </div>
+      <div class="edit-section-heading"><div><div class="edit-section-title">과제 이행현황</div><p class="edit-section-note">추진 내역별로 필요한 항목을 추가하세요. 각 내역에 문서번호와 링크를 함께 등록할 수 있습니다.</p></div><span id="activityCount" class="activity-count">0개 내역</span></div>
+      <div id="activityRows" class="activity-rows"></div>
+      <button type="button" id="addActivityBtn" class="button add-activity">＋ 추진 내역 추가</button>
+      <div class="edit-section-title">주요업무계획</div><p class="edit-section-note">과제의 기본 추진계획과 세부 내용을 관리합니다.</p>
+      <div class="form-grid"><label class="span-2">추진배경 / 목적 <textarea name="background"></textarea></label><label class="span-2">계획 주요내용 <textarea name="detail_content"></textarea></label><label class="span-2">추진일정 <textarea name="schedule"></textarea></label><label class="span-2">추진근거 <textarea name="basis"></textarea></label><label>소요예산 <input name="budget"></label><label>기대효과 <input name="effect"></label></div>
+      <div class="dialog-actions edit-actions"><button type="button" class="button ghost" id="taskCancel">취소</button><button type="submit" class="button primary">변경 내용 저장</button></div>
+    </form>
+  </dialog>
+
+
+  <dialog id="safetyDialog" class="dialog"><form method="dialog"><button class="dialog-x" aria-label="닫기">×</button></form><div class="dialog-kicker">SAFETY STATUS</div><h2>안전사고 현황 입력</h2><form id="safetyForm" class="form-grid"><label>2026년 발생(건) <input name="count" type="number" min="0" required></label><label>누계(건) <input name="cumulative" type="number" min="0" required></label><label class="span-2">설명 / 보고 기준 <textarea name="note"></textarea></label><div class="dialog-actions span-2"><button type="button" class="button ghost" id="safetyCancel">취소</button><button type="submit" class="button primary">저장</button></div></form></dialog>
+
+  <div id="printReport" class="print-report"></div>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <script src="./config.js"></script><script src="./vendor/jszip.min.js"></script><script src="./app.js"></script>
+</body>
+</html>
+
