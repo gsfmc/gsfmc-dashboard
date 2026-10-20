@@ -67,7 +67,7 @@
   <dialog id="staffAdminDialog" class="dialog wide staff-admin-dialog" aria-labelledby="staffAdminTitle">
     <button type="button" class="dialog-x" id="staffAdminClose" aria-label="닫기">×</button>
     <div class="dialog-kicker">STAFF ACCESS CONTROL</div><h2 id="staffAdminTitle">직원 계정·접속 이력</h2>
-    <p>과제에 등록된 담당자가 자동으로 표시됩니다. 비밀번호는 한 명씩 설정하고 직원에게 별도로 전달하세요. 비밀번호는 서버에 암호화된 검증값으로 저장됩니다.</p>
+    <p>과제에 등록된 담당자가 자동으로 표시됩니다. 비밀번호는 한 명씩 설정하고 직원에게 별도로 전달하세요. 서버에는 원문 대신 일방향 해시값이 저장됩니다.</p>
     <div class="staff-admin-summary" id="staffAdminSummary"></div>
     <label class="staff-admin-search">담당자 찾기<input id="staffAdminSearch" type="search" placeholder="부서 또는 담당자 검색"></label>
     <div id="staffAccountRows" class="staff-account-rows"></div>
