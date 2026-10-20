@@ -256,3 +256,29 @@
   .edit-actions { bottom:-22px; }
 }
 
+.staff-login-dialog { width:min(420px,calc(100vw - 32px)); padding:30px; border-radius:16px; }
+.staff-login-dialog::backdrop,.staff-admin-dialog::backdrop { background:rgba(15,39,38,.56); }
+.staff-login-form { display:grid; gap:15px; margin-top:22px; }
+.staff-login-form label,.staff-admin-search { display:grid; gap:7px; color:#526a61; font-size:12px; font-weight:750; }
+.staff-login-form input,.staff-login-form select,.staff-admin-search input { box-sizing:border-box; width:100%; min-height:42px; padding:9px 11px; border:1px solid #cbdad4; border-radius:8px; background:#fff; color:#23443d; font:inherit; font-weight:400; }
+.staff-login-form button { width:100%; margin-top:3px; }
+.staff-form-error { min-height:18px; margin:0; color:#b64036; font-size:12px; }
+.staff-admin-dialog { width:min(960px,calc(100vw - 32px)); max-height:min(88vh,900px); padding:30px; }
+.staff-admin-summary { margin:18px 0; padding:11px 14px; border-radius:9px; background:#eaf5ef; color:#176e4a; font-size:13px; font-weight:750; }
+.staff-admin-search { margin-bottom:14px; }
+.staff-account-rows,.staff-audit-rows { display:grid; gap:8px; }
+.staff-account-row { display:grid; grid-template-columns:minmax(165px,1.2fr) minmax(145px,1fr) minmax(180px,1.2fr) auto; align-items:center; gap:10px; padding:11px 12px; border:1px solid #dbe6df; border-radius:9px; background:#fff; }
+.staff-account-row strong { display:block; color:#28483f; font-size:12px; }
+.staff-account-row small { color:#71837b; font-size:11px; }
+.staff-account-row input { min-width:0; width:100%; box-sizing:border-box; min-height:35px; padding:7px 9px; border:1px solid #cbdad4; border-radius:7px; font:inherit; font-size:12px; }
+.staff-account-actions { display:flex; gap:6px; }
+.staff-account-actions button { white-space:nowrap; min-height:34px; padding:6px 9px; font-size:11px; }
+.staff-audit-title { margin:28px 0 6px; color:#28483f; font-size:15px; }
+.staff-audit-note { margin:0 0 14px; color:#71837b; font-size:11px; }
+.staff-audit-row { display:grid; grid-template-columns:160px 160px 1fr; gap:12px; padding:10px 12px; border-bottom:1px solid #e5ece8; color:#415a50; font-size:12px; }
+.staff-audit-row time { color:#71837b; font-variant-numeric:tabular-nums; }
+@media screen and (max-width:720px) {
+  .staff-account-row { grid-template-columns:1fr 1fr; }
+  .staff-account-row input,.staff-account-actions { grid-column:1/-1; }
+  .staff-audit-row { grid-template-columns:1fr; gap:3px; }
+}
