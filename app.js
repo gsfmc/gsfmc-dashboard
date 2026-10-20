@@ -293,7 +293,7 @@ function renderStaffAdmin(){
 
 function renderStaffAudit(rows){
   const names=new Map(staffAccounts.map(person=>[person.id,`${person.dept} · ${person.owner}`]));
-  const labels={login_success:'로그인 성공',login_failed:'로그인 실패',logout:'로그아웃',task_updated:'과제 수정',password_set:'비밀번호 설정·변경',password_disabled:'접속 차단'};
+  const labels={login_success:'로그인 성공',login_failed:'로그인 실패',logout:'로그아웃',task_updated:'과제 수정',password_set:'관리자가 비밀번호 설정·변경',password_disabled:'관리자가 접속 차단'};
   $('staffAuditRows').innerHTML=rows.length?rows.map(row=>{
     const task=state?.tasks.find(item=>item.id===row.task_id);
     const who=names.get(row.staff_id)||'현재 과제에 없는 담당자';
