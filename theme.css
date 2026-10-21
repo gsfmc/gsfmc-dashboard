@@ -277,8 +277,13 @@
 .staff-audit-note { margin:0 0 14px; color:#71837b; font-size:11px; }
 .staff-audit-row { display:grid; grid-template-columns:160px 160px 1fr; gap:12px; padding:10px 12px; border-bottom:1px solid #e5ece8; color:#415a50; font-size:12px; }
 .staff-audit-row time { color:#71837b; font-variant-numeric:tabular-nums; }
+.detail-history { margin-top:20px; color:#526a61; font-size:12px; }
+.detail-history-row { display:grid; grid-template-columns:150px minmax(100px,1fr) 80px; gap:10px; padding:9px 2px; border-bottom:1px solid #e5ece8; }
+.detail-history-row time { color:#71837b; font-variant-numeric:tabular-nums; }
+.detail-history-row strong { color:#28483f; }
 @media screen and (max-width:720px) {
   .staff-account-row { grid-template-columns:1fr 1fr; }
   .staff-account-row input,.staff-account-actions { grid-column:1/-1; }
   .staff-audit-row { grid-template-columns:1fr; gap:3px; }
+  .detail-history-row { grid-template-columns:1fr; gap:3px; }
 }

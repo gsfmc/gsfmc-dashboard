@@ -42,7 +42,7 @@ function applyAccount() {
   // only masks an editor token with a query parameter.
   $('viewOnlyLink').hidden=true;
   $('taskAccessBadge').textContent=account.role==='staff'?'본인 과제만 수정':editable?'편집 가능':'보기 전용';
-  document.querySelector('.panel-caption').textContent=editable?'업무명을 누르면 추진계획과 이행현황을 확인하고 수정할 수 있습니다.':'업무명을 누르면 추진계획과 이행현황을 확인할 수 있습니다.';
+  document.querySelector('.panel-caption').textContent=editable?'업무명을 누르면 추진계획과 이행현황을 확인하고 수정할 수 있습니다.':'업무명을 누르면 추진계획을 확인할 수 있습니다.';
   document.querySelector('.action-note').textContent=editable?'부서별 과제를 선택해 세부내용을 확인하고 수정할 수 있습니다.':'부서별 과제를 선택해 세부내용을 확인할 수 있습니다.';
   if($('detailDialog').open){const task=state?.tasks.find(task=>task.id===viewingId);$('detailEdit').hidden=!task||!canEdit(task);}
   for(const link of document.querySelectorAll('a[data-section]'))link.setAttribute('href',linkKind&&editToken?`#${linkKind}/${editToken}/${link.dataset.section}`:`#${link.dataset.section}`);
@@ -100,6 +100,18 @@ function documentField(task){
     return url?`<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${label}<span aria-hidden="true">↗</span></a>`:`<span>${label}</span>`;
   }).join('')}</div></section>`;
 }
+function auditActor(id){
+  if(id==='__admin__')return '관리자';
+  try{const [dept,owner]=JSON.parse(id);return `${dept} · ${owner}`;}catch{return '담당자';}
+}
+async function loadTaskHistory(taskId){
+  const mount=$('detailHistory');
+  try{
+    const rows=await api('GET',`/api/tasks/${encodeURIComponent(taskId)}/history`);
+    if(viewingId!==taskId||!$('detailDialog').open)return;
+    mount.innerHTML=`<div class="detail-section-label">수정 이력</div>${rows.length?rows.map(row=>`<div class="detail-history-row"><time>${esc(new Date(row.created_at).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'}))}</time><strong>${esc(auditActor(row.staff_id))}</strong><span>${row.event==='task_created'?'과제 등록':'과제 수정'}</span></div>`).join(''):'<p class="detail-empty">아직 기록된 수정 이력이 없습니다.</p>'}`;
+  }catch(error){if(viewingId===taskId&&$('detailDialog').open)mount.textContent=`수정 이력을 불러오지 못했습니다: ${error.message}`;}
+}
 function openDetail(task){
   viewingId=task.id;
   $('detailEdit').hidden = !canEdit(task);
@@ -107,8 +119,9 @@ function openDetail(task){
   const plan=task.detail_content||'';
   const headline=`<div class="detail-kicker">${esc(task.dept)} · ${esc(task.owner||'담당자 미입력')}</div><h2>${esc(task.task)}</h2><div class="detail-chips"><span class="badge ${statusClass(task.status)}">${esc(task.status||'미입력')}</span><span>이행률 <b>${pct(task)}%</b></span><span>자체평가 <b>${esc(scoreText(task))}</b></span>${task.category?`<span>${esc(task.category)}</span>`:''}</div>`;
   const meta=[['경영목표',task.goal],['전략과제',task.strategy],['계획상 과제명',task.hwp_task&&task.hwp_task!==task.task?task.hwp_task:''],['자료 출처',source]].filter(([,v])=>v);
-  $('detailBody').innerHTML=`${headline}${meta.length?`<div class="detail-meta">${meta.map(([k,v])=>`<div><small>${esc(k)}</small><strong>${esc(v)}</strong></div>`).join('')}</div>`:''}<div class="detail-section-label">추진계획</div>${detailField('추진배경 / 목적',task.background)}${detailField('추진근거',task.basis)}${detailField('계획 주요내용',plan)}${detailField('추진일정',task.schedule)}${detailField('소요예산',task.budget)}${detailField('기대효과',task.effect)}${task.detailed_plan?`<details class="detail-raw"><summary>한글 세부계획 원문 전체 보기</summary><div>${htmlText(task.detailed_plan)}</div></details>`:''}<div class="detail-section-label">과제 이행현황</div>${activityDetails(task)}${task.dueDate?`<div class="detail-meta"><div><small>마감일</small><strong>${esc(task.dueDate)}</strong></div></div>`:''}`;
+  $('detailBody').innerHTML=`${headline}${meta.length?`<div class="detail-meta">${meta.map(([k,v])=>`<div><small>${esc(k)}</small><strong>${esc(v)}</strong></div>`).join('')}</div>`:''}<div class="detail-section-label">추진계획</div>${detailField('추진배경 / 목적',task.background)}${detailField('추진근거',task.basis)}${detailField('계획 주요내용',plan)}${detailField('추진일정',task.schedule)}${detailField('소요예산',task.budget)}${detailField('기대효과',task.effect)}${task.detailed_plan?`<details class="detail-raw"><summary>한글 세부계획 원문 전체 보기</summary><div>${htmlText(task.detailed_plan)}</div></details>`:''}${accessMode==='edit'?`<div class="detail-section-label">과제 이행현황</div>${activityDetails(task)}`:''}${task.dueDate?`<div class="detail-meta"><div><small>마감일</small><strong>${esc(task.dueDate)}</strong></div></div>`:''}${canEdit(task)?'<div id="detailHistory" class="detail-history">수정 이력을 불러오는 중…</div>':''}`;
   $('detailDialog').showModal();
+  if(canEdit(task))void loadTaskHistory(task.id);
 }
 
 function render() {
@@ -293,12 +306,13 @@ function renderStaffAdmin(){
 
 function renderStaffAudit(rows){
   const names=new Map(staffAccounts.map(person=>[person.id,`${person.dept} · ${person.owner}`]));
-  const labels={login_success:'로그인 성공',login_failed:'로그인 실패',logout:'로그아웃',task_updated:'과제 수정',password_set:'관리자가 비밀번호 설정·변경',password_disabled:'관리자가 접속 차단'};
+  names.set('__admin__','관리자');
+  const labels={login_success:'로그인 성공',login_failed:'로그인 실패',logout:'로그아웃',task_created:'과제 등록',task_updated:'과제 수정',import_applied:'자료 업로드',incident_updated:'안전 현황 수정',password_set:'관리자가 비밀번호 설정·변경',password_disabled:'관리자가 접속 차단'};
   $('staffAuditRows').innerHTML=rows.length?rows.map(row=>{
     const task=state?.tasks.find(item=>item.id===row.task_id);
     const who=names.get(row.staff_id)||'현재 과제에 없는 담당자';
     return `<div class="staff-audit-row"><time>${esc(new Date(row.created_at).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'}))}</time><strong>${esc(who)}</strong><span>${esc(labels[row.event]||row.event)}${task?' · '+esc(task.task):''}</span></div>`;
-  }).join(''):'<div class="empty">기록된 접속 이력이 없습니다.</div>';
+  }).join(''):'<div class="empty">기록된 접속·수정 이력이 없습니다.</div>';
 }
 
 async function refreshStaffAdmin(){
