@@ -6,7 +6,7 @@
   <title>주요업무계획 대시보드 | 광산구시설관리공단</title>
   <meta name="description" content="부서별 주요업무계획과 이행현황을 관리하는 내부용 대시보드">
   <link rel="stylesheet" href="./styles.css">
-  <link rel="stylesheet" href="./theme.css?v=history-20261021">
+  <link rel="stylesheet" href="./theme.css?v=audit-tabs-20261021">
   <meta name="robots" content="noindex,nofollow">
 </head>
 <body>
@@ -31,7 +31,7 @@
           <div class="header-side"><div class="header-chips" id="headerChips"></div><span id="dataStatusMirror" class="data-status">자료 확인 중</span></div>
         </section>
         <div id="accessBanner" class="access-banner" role="status"><div><strong id="accessModeTitle">권한 확인 중</strong><span id="accessModeDescription">접속 링크의 권한을 확인하고 있습니다.</span></div><a id="viewOnlyLink" href="?view=readonly#tasks" hidden>보기 전용으로 전환 →</a></div>
-        <div class="action-row"><div class="head-actions"><button class="button ghost" id="backupBtn" hidden>자료 백업</button><button class="button ghost" id="printBtn">주요업무계획 인쇄</button><button class="button ghost" id="manageStaffBtn" hidden>직원 계정·수정 이력</button><button class="button ghost" id="staffLogoutBtn" hidden>로그아웃</button><button class="button primary" id="uploadBtn" hidden>＋ 엑셀 업로드</button><input id="fileInput" type="file" accept=".xlsx" hidden></div><span class="action-note">부서별 과제를 선택해 세부내용을 확인하고 수정할 수 있습니다.</span></div>
+        <div class="action-row"><div class="head-actions"><button class="button ghost" id="backupBtn" hidden>자료 백업</button><button class="button ghost" id="printBtn">주요업무계획 인쇄</button><button class="button ghost" id="manageStaffBtn" hidden>직원 계정·이력</button><button class="button ghost" id="staffLogoutBtn" hidden>로그아웃</button><button class="button primary" id="uploadBtn" hidden>＋ 엑셀 업로드</button><input id="fileInput" type="file" accept=".xlsx" hidden></div><span class="action-note">부서별 과제를 선택해 세부내용을 확인하고 수정할 수 있습니다.</span></div>
         <section class="hero-metrics" aria-label="핵심 지표">
           <div class="panel gauge-card"><span class="g-title">전사 평균 이행률</span><span class="g-sub">전체 추진과제 기준</span><div id="gaugeMount" class="gauge-mount"></div><div class="gauge-foot">완료 과제 <b id="gaugeFootRate">—</b></div></div>
           <div class="hero-right"><section class="kpi-grid"><div class="kpi-card"><span>전체 과제</span><strong id="kpiTotal">—</strong><small>등록된 추진과제</small></div><div class="kpi-card"><span>진행 중</span><strong id="kpiActive">—</strong><small>현재 추진 중인 과제</small></div><div class="kpi-card"><span>완료</span><strong id="kpiDone">—</strong><small>전체 과제 중 완료</small></div><div class="kpi-card alert"><span>기한 지연</span><strong id="kpiLate">—</strong><small>마감일 경과 · 미완료</small></div></section><div id="statusStrip" class="panel status-strip"></div></div>
@@ -66,14 +66,26 @@
 
   <dialog id="staffAdminDialog" class="dialog wide staff-admin-dialog" aria-labelledby="staffAdminTitle">
     <button type="button" class="dialog-x" id="staffAdminClose" aria-label="닫기">×</button>
-    <div class="dialog-kicker">STAFF ACCESS CONTROL</div><h2 id="staffAdminTitle">직원 계정·접속 이력</h2>
-    <p>과제에 등록된 담당자가 자동으로 표시됩니다. 비밀번호는 한 명씩 설정하고 직원에게 별도로 전달하세요. 서버에는 원문 대신 일방향 해시값이 저장됩니다.</p>
-    <div class="staff-admin-summary" id="staffAdminSummary"></div>
-    <label class="staff-admin-search">담당자 찾기<input id="staffAdminSearch" type="search" placeholder="부서 또는 담당자 검색"></label>
-    <div id="staffAccountRows" class="staff-account-rows"></div>
-    <h3 class="staff-audit-title">최근 접속·수정 이력</h3>
-    <p class="staff-audit-note">로그인, 과제 등록·수정, 자료 업로드, 안전 현황 변경을 최근 200건까지 표시합니다. 비밀번호와 IP 주소는 기록하지 않습니다.</p>
-    <div id="staffAuditRows" class="staff-audit-rows"></div>
+    <div class="dialog-kicker">STAFF ACCESS CONTROL</div><h2 id="staffAdminTitle">직원 계정·이력</h2>
+    <div class="staff-admin-toolbar"><div class="staff-admin-tabs" role="tablist" aria-label="직원 계정과 이력 구분">
+      <button type="button" id="staffTabAccounts" role="tab" aria-selected="true" aria-controls="staffPanelAccounts" data-staff-tab="accounts">직원 계정</button>
+      <button type="button" id="staffTabAccess" role="tab" aria-selected="false" aria-controls="staffPanelAccess" data-staff-tab="access">접속 이력 <span id="staffAccessCount">0</span></button>
+      <button type="button" id="staffTabChanges" role="tab" aria-selected="false" aria-controls="staffPanelChanges" data-staff-tab="changes">수정 이력 <span id="staffChangeCount">0</span></button>
+    </div><button type="button" id="staffAuditRefresh" class="button subtle">↻ 새로고침</button></div>
+    <section id="staffPanelAccounts" role="tabpanel" aria-labelledby="staffTabAccounts" class="staff-admin-panel">
+      <p>과제에 등록된 담당자가 자동으로 표시됩니다. 비밀번호는 한 명씩 설정하고 직원에게 별도로 전달하세요. 서버에는 원문 대신 일방향 해시값이 저장됩니다.</p>
+      <div class="staff-admin-summary" id="staffAdminSummary"></div>
+      <label class="staff-admin-search">담당자 찾기<input id="staffAdminSearch" type="search" placeholder="부서 또는 담당자 검색"></label>
+      <div id="staffAccountRows" class="staff-account-rows"></div>
+    </section>
+    <section id="staffPanelAccess" role="tabpanel" aria-labelledby="staffTabAccess" class="staff-admin-panel" hidden>
+      <h3 class="staff-audit-title">접속 이력</h3><p class="staff-audit-note">로그인 성공·실패, 로그아웃, 비밀번호 설정·차단을 최근 200건까지 표시합니다. 비밀번호와 IP 주소는 기록하지 않습니다.</p>
+      <div id="staffAccessRows" class="staff-audit-rows"></div>
+    </section>
+    <section id="staffPanelChanges" role="tabpanel" aria-labelledby="staffTabChanges" class="staff-admin-panel" hidden>
+      <h3 class="staff-audit-title">수정 이력</h3><p class="staff-audit-note">과제 등록·수정, 자료 업로드, 안전 현황 변경을 최근 200건까지 표시합니다. 배포 전 수정 내역은 소급 표시되지 않습니다.</p>
+      <div id="staffChangeRows" class="staff-audit-rows"></div>
+    </section>
   </dialog>
 
   <dialog id="uploadDialog" class="dialog"><form method="dialog"><button class="dialog-x" aria-label="닫기">×</button></form><div class="dialog-kicker">DATA IMPORT</div><h2>엑셀 자료 가져오기</h2><p>첨부2 양식의 부서별 시트를 읽습니다. 기존 업무 목록은 업로드한 엑셀 기준으로 갱신되고, 직접 입력한 마감일 등은 같은 과제명에 유지됩니다.</p><div id="uploadPreview" class="upload-preview"></div><div class="dialog-actions"><button id="uploadCancel" class="button ghost">취소</button><button id="uploadConfirm" class="button primary">업로드 적용</button></div></dialog>
@@ -107,6 +119,6 @@
 
   <div id="printReport" class="print-report"></div>
   <div id="toast" role="status" aria-live="polite"></div>
-  <script src="./config.js"></script><script src="./vendor/jszip.min.js"></script><script src="./app.js?v=history-20261021"></script>
+  <script src="./config.js"></script><script src="./vendor/jszip.min.js"></script><script src="./app.js?v=audit-tabs-20261021"></script>
 </body>
 </html>

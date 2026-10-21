@@ -304,24 +304,37 @@ function renderStaffAdmin(){
   </div>`).join(''):'<div class="empty">조건에 맞는 담당자가 없습니다.</div>';
 }
 
-function renderStaffAudit(rows){
+function showStaffTab(kind){
+  for(const name of ['accounts','access','changes']){
+    $(`staffPanel${name[0].toUpperCase()+name.slice(1)}`).hidden=name!==kind;
+    $(`staffTab${name[0].toUpperCase()+name.slice(1)}`).setAttribute('aria-selected',String(name===kind));
+  }
+  $('staffAdminDialog').scrollTop=0;
+}
+
+function renderStaffAudit(rows,targetId,emptyMessage){
   const names=new Map(staffAccounts.map(person=>[person.id,`${person.dept} · ${person.owner}`]));
   names.set('__admin__','관리자');
   const labels={login_success:'로그인 성공',login_failed:'로그인 실패',logout:'로그아웃',task_created:'과제 등록',task_updated:'과제 수정',import_applied:'자료 업로드',incident_updated:'안전 현황 수정',password_set:'관리자가 비밀번호 설정·변경',password_disabled:'관리자가 접속 차단'};
-  $('staffAuditRows').innerHTML=rows.length?rows.map(row=>{
+  $(targetId).innerHTML=rows.length?rows.map(row=>{
     const task=state?.tasks.find(item=>item.id===row.task_id);
     const who=names.get(row.staff_id)||'현재 과제에 없는 담당자';
     return `<div class="staff-audit-row"><time>${esc(new Date(row.created_at).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'}))}</time><strong>${esc(who)}</strong><span>${esc(labels[row.event]||row.event)}${task?' · '+esc(task.task):''}</span></div>`;
-  }).join(''):'<div class="empty">기록된 접속·수정 이력이 없습니다.</div>';
+  }).join(''):`<div class="empty">${esc(emptyMessage)}</div>`;
 }
 
 async function refreshStaffAdmin(){
-  const [people,audit]=await Promise.all([api('GET','/api/admin/staff'),api('GET','/api/admin/staff-audit')]);
-  staffAccounts=people;renderStaffAdmin();renderStaffAudit(audit);
+  const [people,access,changes]=await Promise.all([api('GET','/api/admin/staff'),api('GET','/api/admin/staff-audit?kind=access'),api('GET','/api/admin/staff-audit?kind=changes')]);
+  staffAccounts=people;renderStaffAdmin();
+  $('staffAccessCount').textContent=access.length;
+  $('staffChangeCount').textContent=changes.length;
+  renderStaffAudit(access,'staffAccessRows','기록된 접속 이력이 없습니다.');
+  renderStaffAudit(changes,'staffChangeRows','기록된 수정 이력이 없습니다.');
 }
 
 async function openStaffAdmin(){
   await refreshStaffAdmin();
+  showStaffTab('accounts');
   $('staffAdminDialog').showModal();
 }
 
@@ -352,6 +365,11 @@ function bind(){
   };
   $('manageStaffBtn').onclick=()=>openStaffAdmin().catch(error=>toast(error.message));
   $('staffAdminClose').onclick=()=>$('staffAdminDialog').close();
+  $('staffAdminDialog').querySelector('.staff-admin-tabs').onclick=event=>{
+    const kind=event.target.closest('[data-staff-tab]')?.dataset.staffTab;
+    if(kind)showStaffTab(kind);
+  };
+  $('staffAuditRefresh').onclick=()=>refreshStaffAdmin().catch(error=>toast(error.message));
   $('staffAdminSearch').oninput=renderStaffAdmin;
   $('staffAccountRows').onclick=async event=>{
     const button=event.target.closest('button'),row=button?.closest('.staff-account-row');
