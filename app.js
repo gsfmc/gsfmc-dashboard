@@ -32,6 +32,7 @@ function applyAccount() {
   $('accountLabel').textContent = `${account.username} · ${account.role === 'admin' ? '관리자' : account.role === 'staff' ? '담당자' : '조회 전용'}`;
   for (const id of ['uploadBtn', 'backupBtn', 'safetyBtn']) $(id).hidden = account.role !== 'admin';
   $('manageStaffBtn').hidden = account.role !== 'admin';
+  $('staffPasswordBtn').hidden = account.role !== 'staff';
   $('staffLogoutBtn').hidden = account.role !== 'staff';
   $('addTaskBtn').hidden = account.role !== 'admin';
   const editable=accessMode==='edit'&&account.role!=='viewer';
@@ -300,7 +301,7 @@ function renderStaffAdmin(){
     <div><strong>${esc(person.dept)} · ${esc(person.owner)}</strong><small>담당 과제 ${person.taskCount}건</small></div>
     <div><strong>${person.configured?'설정 완료':'미설정'}</strong><small>${person.passwordUpdatedAt?new Date(person.passwordUpdatedAt).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'}):'비밀번호 필요'}</small></div>
     <input type="password" autocomplete="new-password" minlength="10" maxlength="128" aria-label="${esc(person.dept)} ${esc(person.owner)} 새 비밀번호" placeholder="새 비밀번호 10자 이상">
-    <div class="staff-account-actions"><button type="button" class="button primary staff-password-save">${person.configured?'변경':'설정'}</button><button type="button" class="button ghost staff-password-disable" ${person.configured?'':'disabled'}>차단</button></div>
+    <div class="staff-account-actions"><button type="button" class="button primary staff-password-save">${person.configured?'변경':'설정'}</button><button type="button" class="button ghost staff-password-reset">초기화</button><button type="button" class="button ghost staff-password-disable" ${person.configured?'':'disabled'}>차단</button></div>
   </div>`).join(''):'<div class="empty">조건에 맞는 담당자가 없습니다.</div>';
 }
 
@@ -315,7 +316,7 @@ function showStaffTab(kind){
 function renderStaffAudit(rows,targetId,emptyMessage){
   const names=new Map(staffAccounts.map(person=>[person.id,`${person.dept} · ${person.owner}`]));
   names.set('__admin__','관리자');
-  const labels={login_success:'로그인 성공',login_failed:'로그인 실패',logout:'로그아웃',task_created:'과제 등록',task_updated:'과제 수정',import_applied:'자료 업로드',incident_updated:'안전 현황 수정',password_set:'관리자가 비밀번호 설정·변경',password_disabled:'관리자가 접속 차단'};
+  const labels={login_success:'로그인 성공',login_failed:'로그인 실패',logout:'로그아웃',task_created:'과제 등록',task_updated:'과제 수정',import_applied:'자료 업로드',incident_updated:'안전 현황 수정',password_set:'관리자가 비밀번호 설정·변경',password_reset:'관리자가 초기 비밀번호 재설정',password_changed:'본인 비밀번호 변경',password_change_failed:'비밀번호 변경 실패',password_disabled:'관리자가 접속 차단'};
   $(targetId).innerHTML=rows.length?rows.map(row=>{
     const task=state?.tasks.find(item=>item.id===row.task_id);
     const who=names.get(row.staff_id)||'현재 과제에 없는 담당자';
@@ -363,6 +364,23 @@ function bind(){
     try{sessionStorage.removeItem('workplan-staff-session');}catch{}
     location.reload();
   };
+  $('staffPasswordBtn').onclick=()=>{
+    const form=$('staffPasswordForm');form.reset();$('staffPasswordError').textContent='';$('staffPasswordDialog').showModal();
+  };
+  $('staffPasswordClose').onclick=()=>$('staffPasswordDialog').close();
+  $('staffPasswordForm').onsubmit=async event=>{
+    event.preventDefault();
+    const form=event.target,currentPassword=form.elements.currentPassword.value,newPassword=form.elements.newPassword.value,confirmPassword=form.elements.confirmPassword.value;
+    const submit=form.querySelector('[type="submit"]');$('staffPasswordError').textContent='';
+    if(newPassword!==confirmPassword){$('staffPasswordError').textContent='새 비밀번호가 서로 일치하지 않습니다.';return;}
+    submit.disabled=true;
+    try{
+      await api('PUT','/api/staff-password',{currentPassword,newPassword});
+      staffSession=null;try{sessionStorage.removeItem('workplan-staff-session');}catch{}
+      $('staffPasswordDialog').close();await showStaffLogin();toast('비밀번호를 변경했습니다. 새 비밀번호로 다시 로그인해 주세요.');
+    }catch(error){$('staffPasswordError').textContent=error.message;}
+    finally{submit.disabled=false;}
+  };
   $('manageStaffBtn').onclick=()=>openStaffAdmin().catch(error=>toast(error.message));
   $('staffAdminClose').onclick=()=>$('staffAdminDialog').close();
   $('staffAdminDialog').querySelector('.staff-admin-tabs').onclick=event=>{
@@ -381,6 +399,12 @@ function bind(){
       if([...password].length<10){toast('비밀번호는 10자 이상으로 입력해 주세요.');input.focus();return;}
       button.disabled=true;
       try{await api('PUT','/api/admin/staff-password',{dept:person.dept,owner:person.owner,password});input.value='';await refreshStaffAdmin();toast(`${person.dept} ${person.owner} 비밀번호를 설정했습니다.`);}
+      catch(error){toast(error.message);}finally{button.disabled=false;}
+    }
+    if(button.matches('.staff-password-reset')){
+      if(!confirm(`${person.dept} ${person.owner}의 비밀번호를 초기 비밀번호로 재설정할까요? 기존 로그인은 해제됩니다.`))return;
+      button.disabled=true;
+      try{await api('POST','/api/admin/staff-password-reset',{dept:person.dept,owner:person.owner});await refreshStaffAdmin();toast(`${person.owner}의 비밀번호를 초기화했습니다.`);}
       catch(error){toast(error.message);}finally{button.disabled=false;}
     }
     if(button.matches('.staff-password-disable')){
@@ -435,3 +459,4 @@ initializeAccess().then(()=>{
     catch(error){if(error.status===401&&linkKind==='edit'){staffSession=null;try{sessionStorage.removeItem('workplan-staff-session');}catch{}location.reload();}}
   },15000);
 }).catch(err=>toast(`서버 연결 실패: ${err.message}`));
+
