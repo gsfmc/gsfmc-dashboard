@@ -7,6 +7,7 @@ let editingId = null;
 let viewingId = null;
 let account = null;
 let staffSession = null;
+let staffPeople = [];
 let staffAccounts = [];
 let passwordChangeRequired = false;
 try { staffSession = sessionStorage.getItem('workplan-staff-session'); } catch {}
@@ -273,7 +274,10 @@ function printReport(){
 async function showStaffLogin(){
   staffSession=null;
   try { sessionStorage.removeItem('workplan-staff-session'); } catch {}
-  $('staffLoginForm').reset();
+  staffPeople=await api('GET','/api/staff-directory');
+  const depts=[...new Set(staffPeople.map(person=>person.dept))].sort((a,b)=>a.localeCompare(b,'ko'));
+  $('staffLoginDept').innerHTML='<option value="">부서 선택</option>'+depts.map(dept=>`<option value="${esc(dept)}">${esc(dept)}</option>`).join('');
+  $('staffLoginOwner').innerHTML='<option value="">담당자 선택</option>';
   $('staffLoginError').textContent='';
   if(!$('staffLoginDialog').open)$('staffLoginDialog').showModal();
 }
@@ -360,6 +364,10 @@ async function openStaffAdmin(){
 
 function bind(){
   $('staffLoginDialog').addEventListener('cancel',event=>event.preventDefault());
+  $('staffLoginDept').onchange=()=>{
+    const people=staffPeople.filter(person=>person.dept===$('staffLoginDept').value);
+    $('staffLoginOwner').innerHTML='<option value="">담당자 선택</option>'+people.map(person=>`<option value="${esc(person.owner)}">${esc(person.owner)}</option>`).join('');
+  };
   $('staffLoginForm').onsubmit=async event=>{
     event.preventDefault();
     const form=event.target,submit=form.querySelector('[type="submit"]');
@@ -478,5 +486,4 @@ initializeAccess().then(()=>{
     catch(error){if(error.status===401&&linkKind==='edit'){staffSession=null;try{sessionStorage.removeItem('workplan-staff-session');}catch{}location.reload();}}
   },15000);
 }).catch(err=>toast(`서버 연결 실패: ${err.message}`));
-
 
