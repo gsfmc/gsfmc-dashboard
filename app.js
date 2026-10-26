@@ -9,6 +9,7 @@ let account = null;
 let staffSession = null;
 let staffPeople = [];
 let staffAccounts = [];
+let passwordChangeRequired = false;
 try { staffSession = sessionStorage.getItem('workplan-staff-session'); } catch {}
 const apiBase=String(window.WORKPLAN_API_BASE||'').replace(/\/+$/,'');
 function staffId(dept,owner){return JSON.stringify([String(dept||'').trim().normalize('NFC'),String(owner||'').replace(/\s+/gu,'').normalize('NFC')]);}
@@ -278,12 +279,31 @@ async function showStaffLogin(){
   if(!$('staffLoginDialog').open)$('staffLoginDialog').showModal();
 }
 
+function showStaffPasswordChange(required = false){
+  passwordChangeRequired = required;
+  const dialog=$('staffPasswordDialog'),form=$('staffPasswordForm');
+  form.reset();
+  $('staffPasswordError').textContent='';
+  $('staffPasswordTitle').textContent=required?'첫 로그인 비밀번호 설정':'비밀번호 변경';
+  dialog.querySelector('p').textContent=required
+    ? '초기 비밀번호로 로그인했습니다. 업무 화면을 이용하려면 본인만 아는 새 비밀번호로 변경해 주세요.'
+    : '현재 비밀번호를 확인한 뒤 새 비밀번호를 설정합니다. 변경 후에는 새 비밀번호로 다시 로그인해 주세요.';
+  $('staffPasswordClose').hidden=required;
+  if(!dialog.open)dialog.showModal();
+}
+
 async function initializeAccess(){
   try{
     const me=await api('GET','/api/me');
-    const nextState=await api('GET','/api/state');
-    account=me;state=nextState;applyAccount();render();
+    account=me;applyAccount();
     if($('staffLoginDialog').open)$('staffLoginDialog').close();
+    if(me.passwordChangeRequired){
+      state=null;
+      showStaffPasswordChange(true);
+      return;
+    }
+    const nextState=await api('GET','/api/state');
+    state=nextState;render();
   }catch(error){
     if(linkKind==='edit'&&error.status===401){
       state=null;account=null;await showStaffLogin();return;
@@ -299,7 +319,7 @@ function renderStaffAdmin(){
   const visible=staffAccounts.map((person,index)=>({...person,index})).filter(person=>!query||`${person.dept} ${person.owner}`.toLocaleLowerCase('ko').includes(query));
   $('staffAccountRows').innerHTML=visible.length?visible.map(person=>`<div class="staff-account-row" data-index="${person.index}">
     <div><strong>${esc(person.dept)} · ${esc(person.owner)}</strong><small>담당 과제 ${person.taskCount}건</small></div>
-    <div><strong>${person.configured?'설정 완료':'미설정'}</strong><small>${person.passwordUpdatedAt?new Date(person.passwordUpdatedAt).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'}):'비밀번호 필요'}</small></div>
+    <div><strong>${person.configured?(person.passwordChangeRequired?'변경 필요':'설정 완료'):'미설정'}</strong><small>${person.passwordUpdatedAt?new Date(person.passwordUpdatedAt).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'}):'비밀번호 필요'}</small></div>
     <input type="password" autocomplete="new-password" minlength="10" maxlength="128" aria-label="${esc(person.dept)} ${esc(person.owner)} 새 비밀번호" placeholder="새 비밀번호 10자 이상">
     <div class="staff-account-actions"><button type="button" class="button primary staff-password-save">${person.configured?'변경':'설정'}</button><button type="button" class="button ghost staff-password-reset">초기화</button><button type="button" class="button ghost staff-password-disable" ${person.configured?'':'disabled'}>차단</button></div>
   </div>`).join(''):'<div class="empty">조건에 맞는 담당자가 없습니다.</div>';
@@ -364,10 +384,13 @@ function bind(){
     try{sessionStorage.removeItem('workplan-staff-session');}catch{}
     location.reload();
   };
-  $('staffPasswordBtn').onclick=()=>{
-    const form=$('staffPasswordForm');form.reset();$('staffPasswordError').textContent='';$('staffPasswordDialog').showModal();
+  $('staffPasswordBtn').onclick=()=>showStaffPasswordChange(false);
+  $('staffPasswordDialog').addEventListener('cancel',event=>{
+    if(passwordChangeRequired)event.preventDefault();
+  });
+  $('staffPasswordClose').onclick=()=>{
+    if(!passwordChangeRequired)$('staffPasswordDialog').close();
   };
-  $('staffPasswordClose').onclick=()=>$('staffPasswordDialog').close();
   $('staffPasswordForm').onsubmit=async event=>{
     event.preventDefault();
     const form=event.target,currentPassword=form.elements.currentPassword.value,newPassword=form.elements.newPassword.value,confirmPassword=form.elements.confirmPassword.value;
@@ -376,6 +399,7 @@ function bind(){
     submit.disabled=true;
     try{
       await api('PUT','/api/staff-password',{currentPassword,newPassword});
+      passwordChangeRequired=false;
       staffSession=null;try{sessionStorage.removeItem('workplan-staff-session');}catch{}
       $('staffPasswordDialog').close();await showStaffLogin();toast('비밀번호를 변경했습니다. 새 비밀번호로 다시 로그인해 주세요.');
     }catch(error){$('staffPasswordError').textContent=error.message;}
