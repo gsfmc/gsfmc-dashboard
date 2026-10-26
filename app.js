@@ -7,14 +7,13 @@ let editingId = null;
 let viewingId = null;
 let account = null;
 let staffSession = null;
-let staffPeople = [];
 let staffAccounts = [];
 let passwordChangeRequired = false;
 try { staffSession = sessionStorage.getItem('workplan-staff-session'); } catch {}
 const apiBase=String(window.WORKPLAN_API_BASE||'').replace(/\/+$/,'');
 function staffId(dept,owner){return JSON.stringify([String(dept||'').trim().normalize('NFC'),String(owner||'').replace(/\s+/gu,'').normalize('NFC')]);}
 function linkAccess(){
-  const match=/^#(edit|view)\/([a-f0-9]{64})(?:\/(overview|departments|tasks|safety))?$/i.exec(location.hash);
+  const match=/^#(edit|view)(?:\/([a-f0-9]{64}))?(?:\/(overview|departments|tasks|safety))?$/i.exec(location.hash);
   const token=match?.[2]||'';
   const kind=match?.[1]?.toLowerCase()||'';
   const readonly=new URLSearchParams(location.search).get('view')==='readonly';
@@ -47,7 +46,10 @@ function applyAccount() {
   document.querySelector('.panel-caption').textContent=editable?'업무명을 누르면 추진계획과 이행현황을 확인하고 수정할 수 있습니다.':'업무명을 누르면 추진계획을 확인할 수 있습니다.';
   document.querySelector('.action-note').textContent=editable?'부서별 과제를 선택해 세부내용을 확인하고 수정할 수 있습니다.':'부서별 과제를 선택해 세부내용을 확인할 수 있습니다.';
   if($('detailDialog').open){const task=state?.tasks.find(task=>task.id===viewingId);$('detailEdit').hidden=!task||!canEdit(task);}
-  for(const link of document.querySelectorAll('a[data-section]'))link.setAttribute('href',linkKind&&editToken?`#${linkKind}/${editToken}/${link.dataset.section}`:`#${link.dataset.section}`);
+  for(const link of document.querySelectorAll('a[data-section]')){
+    const access=linkKind?`#${linkKind}${editToken?`/${editToken}`:''}`:'';
+    link.setAttribute('href',access?`${access}/${link.dataset.section}`:`#${link.dataset.section}`);
+  }
 }
 async function refreshLinkAccess(){
   const next=linkAccess();if(next.token===editToken&&next.kind===linkKind&&next.mode===accessMode)return;
@@ -61,9 +63,9 @@ async function refreshLinkAccess(){
 async function api(method, url, payload) {
   if(accessMode==='view'&&!['GET','HEAD'].includes(method))throw new Error('보기 전용 링크에서는 수정할 수 없습니다.');
   if(!apiBase)throw new Error('데이터 서버 주소가 설정되지 않았습니다.');
-  if(!editToken)throw new Error('조회용 또는 편집용 링크로 접속해 주세요.');
-  const headers = {'X-Workplan-Mode':accessMode,...(payload?{'Content-Type':'application/json'}:{})};
-  headers['X-Workplan-Link-Token']=editToken;
+  if(!linkKind)throw new Error('조회용 또는 편집용 주소로 접속해 주세요.');
+  const headers = {'X-Workplan-Mode':accessMode,'X-Workplan-Access':linkKind,...(payload?{'Content-Type':'application/json'}:{})};
+  if(editToken)headers['X-Workplan-Link-Token']=editToken;
   if(staffSession)headers['X-Workplan-Staff-Session']=staffSession;
   const response = await fetch(`${apiBase}${url}`, { method, headers, body:payload ? JSON.stringify(payload) : undefined });
   const result = await response.json();
@@ -271,10 +273,7 @@ function printReport(){
 async function showStaffLogin(){
   staffSession=null;
   try { sessionStorage.removeItem('workplan-staff-session'); } catch {}
-  staffPeople=await api('GET','/api/staff-directory');
-  const depts=[...new Set(staffPeople.map(person=>person.dept))].sort((a,b)=>a.localeCompare(b,'ko'));
-  $('staffLoginDept').innerHTML='<option value="">부서 선택</option>'+depts.map(dept=>`<option value="${esc(dept)}">${esc(dept)}</option>`).join('');
-  $('staffLoginOwner').innerHTML='<option value="">담당자 선택</option>';
+  $('staffLoginForm').reset();
   $('staffLoginError').textContent='';
   if(!$('staffLoginDialog').open)$('staffLoginDialog').showModal();
 }
@@ -361,10 +360,6 @@ async function openStaffAdmin(){
 
 function bind(){
   $('staffLoginDialog').addEventListener('cancel',event=>event.preventDefault());
-  $('staffLoginDept').onchange=()=>{
-    const people=staffPeople.filter(person=>person.dept===$('staffLoginDept').value);
-    $('staffLoginOwner').innerHTML='<option value="">담당자 선택</option>'+people.map(person=>`<option value="${esc(person.owner)}">${esc(person.owner)}</option>`).join('');
-  };
   $('staffLoginForm').onsubmit=async event=>{
     event.preventDefault();
     const form=event.target,submit=form.querySelector('[type="submit"]');
@@ -483,4 +478,5 @@ initializeAccess().then(()=>{
     catch(error){if(error.status===401&&linkKind==='edit'){staffSession=null;try{sessionStorage.removeItem('workplan-staff-session');}catch{}location.reload();}}
   },15000);
 }).catch(err=>toast(`서버 연결 실패: ${err.message}`));
+
 
