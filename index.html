@@ -57,7 +57,7 @@
     <p>관리자가 지정한 비밀번호로 로그인하면 본인 담당 과제만 수정할 수 있습니다.</p>
     <form id="staffLoginForm" class="staff-login-form">
       <label>부서<select name="dept" id="staffLoginDept" required><option value="">부서 선택</option></select></label>
-      <label>담당자<select name="owner" id="staffLoginOwner" required><option value="">담당자 선택</option></select></label>
+      <label>담당자명<input name="owner" id="staffLoginOwner" type="text" autocomplete="username" placeholder="예: 홍길동" maxlength="80" required></label>
       <label>비밀번호<input name="password" type="password" autocomplete="current-password" required></label>
       <p id="staffLoginError" class="staff-form-error" role="alert"></p>
       <button type="submit" class="button primary">로그인</button>
