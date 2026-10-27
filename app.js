@@ -129,6 +129,14 @@ function openDetail(task){
   if(canEdit(task))void loadTaskHistory(task.id);
 }
 
+function annualGoalStatus(rate, taskCount) {
+  if (!taskCount) return {text:'등록된 과제 없음', status:'empty'};
+  const gap = Number((95 - Number(rate)).toFixed(1));
+  return gap > 0
+    ? {text:`목표까지 ${gap.toFixed(1)}%p 부족`, status:'below'}
+    : {text:'목표 달성', status:'met'};
+}
+
 function render() {
   if (!state) return;
   const tasks=state.tasks||[];
@@ -142,6 +150,9 @@ function render() {
   const completed=tasks.filter(t=>t.status==='완료').length;
   $('headerChips').innerHTML=`<div class="header-chip"><b>${tasks.length}</b><small>전체 과제</small></div><div class="header-chip"><b>${deptMap.size}</b><small>참여 부서</small></div><div class="header-chip"><b>${completed}</b><small>완료 과제</small></div>`;
   $('gaugeMount').innerHTML=`<div class="gauge-ring" style="--gauge:${average}%"><div class="gauge-inner"><strong>${average}%</strong><span>평균 이행률</span></div></div>`;
+  const goalStatus=annualGoalStatus(average, tasks.length);
+  $('annualGoalGap').textContent=goalStatus.text;
+  $('annualGoalGap').dataset.status=goalStatus.status;
   $('gaugeFootRate').textContent=`${completed} / ${tasks.length}건`;
   const statusGroups=[['완료','#1f8a5f'],['진행중','#0e6e7c'],['예정','#9ebdc1'],['보류','#c97a2b'],['미입력','#dce4e2']];
   const statusCounts=statusGroups.map(([name,color])=>({name,color,count:tasks.filter(t=>t.status===name).length}));

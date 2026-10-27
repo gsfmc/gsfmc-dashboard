@@ -300,3 +300,7 @@
   .detail-history-row { grid-template-columns:1fr; gap:3px; }
 }
 
+
+.goal-gap { margin:0 0 12px; padding:5px 10px; border-radius:6px; font-size:12px; font-weight:700; color:var(--muted); }
+.goal-gap[data-status="below"] { color:#b33b32; background:#fff1ee; }
+.goal-gap[data-status="met"] { color:#17734e; background:#eaf7ef; }
